@@ -2817,6 +2817,30 @@ export default function CampCash() {
             )}
 
 
+            {/* Account */}
+            <div className={`rounded-2xl border ${border} ${cardBg} p-5`}>
+              <div className="flex items-center gap-3 mb-4">
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center ${dark ? "bg-blue-500/15" : "bg-blue-50"}`}>
+                  <User size={16} className="text-blue-600" />
+                </div>
+                <div>
+                  <div className="font-semibold text-[14px]">Account</div>
+                  <div className={`text-[12px] ${textMuted}`}>Local profile only — no login, no server</div>
+                </div>
+              </div>
+              <label className={`text-[12px] font-medium ${textMuted} mb-1 block`}>Display name</label>
+              <input
+                type="text"
+                value={accountName}
+                onChange={e => setAccountName(e.target.value)}
+                placeholder="e.g. Aarav"
+                className={`w-full rounded-lg border ${inputBg} px-3 py-2 text-[14px] outline-none mb-2`}
+              />
+              <div className={`text-[11px] ${textMuted}`}>
+                Used to personalize the Home header ("Aarav's Wallet"), the PDF summary title, and the Excel export — purely cosmetic, not an account or login of any kind.
+              </div>
+            </div>
+
             {/* Appearance & Currency */}
             <div className={`rounded-2xl border ${border} ${cardBg} p-5`}>
               <div className="font-semibold text-[14px] mb-4">Appearance & Currency</div>
