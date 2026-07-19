@@ -3,7 +3,7 @@ import {
   Wallet, Bell, MoreVertical, Home, BarChart2, PieChart as PieChartIcon, Settings,
   ArrowDownCircle, ArrowUpCircle, Search, SlidersHorizontal, ChevronDown, ChevronUp,
   Plus, Minus, Calendar, Moon, Sun, Trash2, User, Download, Upload, FileText, FileSpreadsheet,
-  AlertTriangle, Sparkles, Landmark, Copy, Cloud
+  AlertTriangle, Sparkles, Landmark, Copy, Cloud, Star
 } from "lucide-react";
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
@@ -42,36 +42,22 @@ const DEFAULT_CATEGORIES = [
   "Transport / Other",
 ];
 
-// Extracted from College_Budget.xlsx — "Budget" sheet, values as shown (High scenario, 1.3x baked in per the Scenarios sheet).
-// `variable: true` marks rows the Assumptions sheet prefixes "PERSONAL –" or "HOME TRAVEL –" — the ones the
-// Scenarios sheet says the multiplier applies to. Everything else (official fees, mess, internship/portfolio/thesis
-// one-offs) stays fixed regardless of scenario.
-const BASE_SCENARIO_MULTIPLIER = 1.3; // the multiplier already baked into the sheet's shown numbers (its "High")
+// Scenario multiplier is optional and off by default — when turned on, it only scales categories
+// a person has explicitly marked "variable". The typed amount is always the Comfortable/1x baseline.
 const SCENARIO_MULTIPLIERS = { Conservative: 0.75, Comfortable: 1, High: 1.25 };
 
-const BUDGET_ROWS = [
-  { head: "Institute & Hostel Fees", years: [120000, 100000, 100000, 100000, 100000], notes: "Year 1 includes one-time fees & refundable deposits", mapsTo: "Institute & Hostel Fees", group: "Fixed Cost", variable: false },
-  { head: "Mess / Food", years: [50000, 50000, 60000, 60000, 80000], notes: "Paid to vendor per semester", mapsTo: "Mess / Food", group: "Fixed Cost", variable: false },
-  { head: "Laptop + Mobile (one-time)", years: [200000, 0, 0, 0, 0], notes: "Bought in Year 1", mapsTo: "Laptop / Electronics", group: "Personal", variable: true },
-  { head: "Laptop upgrade / repair", years: [0, 0, 5000, 5000, 5000], notes: "Optional buffer", mapsTo: "Laptop / Electronics", group: "Personal", variable: true },
-  { head: "Studio Supplies / Stationery", years: [20000, 20000, 20000, 20000, 20000], notes: "Sheets, pens, tools, adhesives", mapsTo: "Studio Supplies / Stationery", group: "Study Materials / Printing", variable: true },
-  { head: "Printing / Plotting", years: [20000, 30000, 30000, 30000, 40000], notes: "Submissions & juries", mapsTo: "Printing / Plotting", group: "Study Materials / Printing", variable: true },
-  { head: "Model-Making / Fabrication", years: [10000, 10000, 10000, 20000, 20000], notes: "Foamboard / MDF / 3D print / laser", mapsTo: "Model-Making / Fabrication", group: "Study Materials / Printing", variable: true },
-  { head: "Books & References", years: [10000, 10000, 10000, 10000, 10000], notes: "Purchased books / standards", mapsTo: "Books & References", group: "Study Materials / Printing", variable: true },
-  { head: "Local Field Visits", years: [10000, 10000, 20000, 20000, 20000], notes: "Local trips with college", mapsTo: "Local Field Visits", group: "Study Tours / Internships", variable: true },
-  { head: "Major Study Tour (Year 2)", years: [0, 20000, 0, 0, 0], notes: "When scheduled", mapsTo: "Study Tour / Travel", group: "Study Tours / Internships", variable: true },
-  { head: "Major Study Tour (Year 4)", years: [0, 0, 0, 30000, 0], notes: "When scheduled", mapsTo: "Study Tour / Travel", group: "Study Tours / Internships", variable: true },
-  { head: "Competitions / Workshops", years: [10000, 20000, 20000, 20000, 20000], notes: "Probable", mapsTo: "Competitions / Workshops", group: "Study Tours / Internships", variable: true },
-  { head: "Health & Personal", years: [10000, 15000, 20000, 25000, 30000], notes: "Medicines / tests", mapsTo: "Health & Personal", group: "Personal", variable: true },
-  { head: "Local Commute", years: [10000, 15000, 20000, 25000, 30000], notes: "Autos / cabs / buses", mapsTo: "Local Commute", group: "Personal", variable: true },
-  { head: "Mobile / Internet & Subscriptions", years: [12000, 12000, 15000, 15000, 15000], notes: "Data plans / cloud", mapsTo: "Mobile / Internet & Subscriptions", group: "Personal", variable: true },
-  { head: "Home Travel (round trips)", years: [24000, 40000, 40000, 40000, 40000], notes: "Adjust trips & per-trip cost", mapsTo: "Home Travel", group: "Personal", variable: true },
-  { head: "Internship / Training (Year 4)", years: [0, 0, 0, 200000, 0], notes: "Travel + stay + local commute", mapsTo: "Internship / Training Expenses", group: "Study Tours / Internships", variable: false },
-  { head: "Portfolio / Placement (Year 5)", years: [0, 0, 0, 0, 20000], notes: "Printing / portfolio", mapsTo: "Portfolio / Placement", group: "Study Materials / Printing", variable: false },
-  { head: "Thesis Buffer (Year 5)", years: [0, 0, 0, 0, 20000], notes: "Thesis peak spend", mapsTo: "Thesis Expenses", group: "Study Materials / Printing", variable: false },
+// A generic starter budget, fully editable/replaceable — not tied to any particular life stage.
+// "mapsTo" references the app's default spending categories so the Budgeted vs Logged comparison
+// works out of the box; clearing this out and building your own budget is just as valid.
+const EXAMPLE_BUDGET_PERIODS = ["Month 1", "Month 2", "Month 3", "Month 4"];
+const EXAMPLE_BUDGET_CATEGORIES = [
+  { id: 1, name: "Rent", mapsTo: [], variable: false, amounts: [8000, 8000, 8000, 8000] },
+  { id: 2, name: "Food", mapsTo: ["Mess / Food"], variable: false, amounts: [3000, 3200, 3000, 3100] },
+  { id: 3, name: "Transport", mapsTo: ["Local Commute", "Transport / Other"], variable: false, amounts: [1000, 900, 1100, 1000] },
+  { id: 4, name: "Utilities", mapsTo: ["Mobile / Internet & Subscriptions"], variable: false, amounts: [1200, 1300, 1200, 1250] },
+  { id: 5, name: "Entertainment", mapsTo: [], variable: true, amounts: [800, 600, 900, 700] },
+  { id: 6, name: "Savings", mapsTo: [], variable: false, amounts: [2000, 2000, 2000, 2500] },
 ];
-
-const GROUPS = ["Fixed Cost", "Study Materials / Printing", "Study Tours / Internships", "Personal"];
 
 const CHART_COLORS = ["#3b82f6", "#ef4444", "#22c55e", "#f59e0b", "#a855f7", "#06b6d4", "#ec4899", "#84cc16", "#f97316", "#6366f1", "#14b8a6", "#eab308", "#f43f5e", "#8b5cf6", "#10b981", "#0ea5e9", "#d946ef", "#64748b"];
 
@@ -241,8 +227,18 @@ export default function CampCash() {
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("All");
   const [filterOpen, setFilterOpen] = useState(false);
-  const [budgetYear, setBudgetYear] = useState(1);
-  const [scenario, setScenario] = useState("High");
+  const [budgetPeriods, setBudgetPeriods] = useState(EXAMPLE_BUDGET_PERIODS);
+  const [budgetCategories, setBudgetCategories] = useState(EXAMPLE_BUDGET_CATEGORIES);
+  const [nextBudgetCategoryId, setNextBudgetCategoryId] = useState(7);
+  const [activePeriodIndex, setActivePeriodIndex] = useState(0); // which period the bell checks against
+  const [selectedPeriodIndex, setSelectedPeriodIndex] = useState(0); // which period is being viewed in the tab
+  const [budgetScenarioEnabled, setBudgetScenarioEnabled] = useState(false);
+  const [budgetScenario, setBudgetScenario] = useState("Comfortable");
+  const [newBudgetCategoryName, setNewBudgetCategoryName] = useState("");
+  const budgetCsvInputRef = useRef(null);
+  const [budgetImportConfirming, setBudgetImportConfirming] = useState(false);
+  const [pendingBudgetImport, setPendingBudgetImport] = useState(null);
+  const [budgetMessage, setBudgetMessage] = useState("");
 
   const [sources, setSources] = useState(DEFAULT_SOURCES);
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
@@ -336,7 +332,12 @@ export default function CampCash() {
           if (typeof saved.accountName === "string") setAccountName(saved.accountName);
           if (typeof saved.accountEmail === "string") setAccountEmail(saved.accountEmail);
           if (typeof saved.dark === "boolean") setDark(saved.dark);
-          if (typeof saved.scenario === "string") setScenario(saved.scenario);
+          if (Array.isArray(saved.budgetPeriods)) setBudgetPeriods(saved.budgetPeriods);
+          if (Array.isArray(saved.budgetCategories)) setBudgetCategories(saved.budgetCategories);
+          if (typeof saved.nextBudgetCategoryId === "number") setNextBudgetCategoryId(saved.nextBudgetCategoryId);
+          if (typeof saved.activePeriodIndex === "number") setActivePeriodIndex(saved.activePeriodIndex);
+          if (typeof saved.budgetScenarioEnabled === "boolean") setBudgetScenarioEnabled(saved.budgetScenarioEnabled);
+          if (typeof saved.budgetScenario === "string") setBudgetScenario(saved.budgetScenario);
           if (typeof saved.lastRolloverMonth === "string") setLastRolloverMonth(saved.lastRolloverMonth);
           if (Array.isArray(saved.fds)) setFds(saved.fds);
           if (typeof saved.nextFdId === "number") setNextFdId(saved.nextFdId);
@@ -362,7 +363,8 @@ export default function CampCash() {
       try {
         const payload = {
           transactions, nextId, sources, categories, currency,
-          openingBalance, accountName, accountEmail, dark, scenario, lastRolloverMonth,
+          openingBalance, accountName, accountEmail, dark, lastRolloverMonth,
+          budgetPeriods, budgetCategories, nextBudgetCategoryId, activePeriodIndex, budgetScenarioEnabled, budgetScenario,
           fds, nextFdId, githubToken, gistId, cloudConnected, cloudLastSyncedAt,
           savedAt: new Date().toISOString(),
         };
@@ -373,7 +375,7 @@ export default function CampCash() {
       }
     }, 500);
     return () => clearTimeout(handle);
-  }, [transactions, nextId, sources, categories, currency, openingBalance, accountName, accountEmail, dark, scenario, lastRolloverMonth, fds, nextFdId, githubToken, gistId, cloudConnected, cloudLastSyncedAt, dataLoaded]);
+  }, [transactions, nextId, sources, categories, currency, openingBalance, accountName, accountEmail, dark, lastRolloverMonth, budgetPeriods, budgetCategories, nextBudgetCategoryId, activePeriodIndex, budgetScenarioEnabled, budgetScenario, fds, nextFdId, githubToken, gistId, cloudConnected, cloudLastSyncedAt, dataLoaded]);
 
 
   // Month-end rollover: for every calendar month that has fully passed since we last checked,
@@ -454,7 +456,7 @@ export default function CampCash() {
       }
     }, 1200);
     return () => clearTimeout(handle);
-  }, [transactions, nextId, sources, categories, currency, openingBalance, accountName, accountEmail, scenario, lastRolloverMonth, fds, nextFdId, cloudConnected, gistId, githubToken, dataLoaded]);
+  }, [transactions, nextId, sources, categories, currency, openingBalance, accountName, accountEmail, lastRolloverMonth, budgetPeriods, budgetCategories, nextBudgetCategoryId, activePeriodIndex, budgetScenarioEnabled, budgetScenario, fds, nextFdId, cloudConnected, gistId, githubToken, dataLoaded]);
 
   // On load, if a previous session already connected cloud sync, check whether another device
   // pushed something newer and offer to load it — never silently overwrites local work.
@@ -607,72 +609,67 @@ export default function CampCash() {
     [withBalance, openingBalance]
   );
 
-  // Rescale every row to the selected scenario: variable rows go back to their un-multiplied
-  // base (÷1.3, the multiplier baked into the sheet's shown numbers) then apply the new multiplier.
-  // Fixed rows (official fees, mess, internship/portfolio/thesis one-offs) never change.
-  const scaledRows = useMemo(() => {
-    const mult = SCENARIO_MULTIPLIERS[scenario];
-    return BUDGET_ROWS.map(row => ({
-      ...row,
-      scaledYears: row.years.map(v => row.variable ? Math.round((v / BASE_SCENARIO_MULTIPLIER) * mult) : v),
+  // Scenario multiplier only applies to categories marked "variable", and only when scenario
+  // planning is turned on. The typed amount is always the Comfortable/1x baseline.
+  const scaledBudgetCategories = useMemo(() => {
+    const mult = budgetScenarioEnabled ? SCENARIO_MULTIPLIERS[budgetScenario] : 1;
+    return budgetCategories.map(cat => ({
+      ...cat,
+      scaledAmounts: (cat.amounts || []).map(v => cat.variable ? Math.round(v * mult) : v),
     }));
-  }, [scenario]);
+  }, [budgetCategories, budgetScenarioEnabled, budgetScenario]);
 
-  const yearTotals = useMemo(() => {
-    const totals = [0, 0, 0, 0, 0];
-    scaledRows.forEach(row => row.scaledYears.forEach((v, i) => { totals[i] += v; }));
+  const periodTotals = useMemo(() => {
+    const totals = budgetPeriods.map(() => 0);
+    scaledBudgetCategories.forEach(cat => cat.scaledAmounts.forEach((v, i) => { totals[i] = (totals[i] || 0) + v; }));
     return totals;
-  }, [scaledRows]);
+  }, [scaledBudgetCategories, budgetPeriods]);
 
-  const fiveYearTotal = yearTotals.reduce((a, b) => a + b, 0);
-  const monthlySetAside = fiveYearTotal / 60;
+  const budgetGrandTotal = periodTotals.reduce((a, b) => a + b, 0);
+  const budgetAveragePerPeriod = budgetPeriods.length ? budgetGrandTotal / budgetPeriods.length : 0;
 
-  const groupTotals = useMemo(() => {
-    return GROUPS.map(group => ({
-      group,
-      years: [0, 1, 2, 3, 4].map(i =>
-        scaledRows.filter(r => r.group === group).reduce((s, r) => s + r.scaledYears[i], 0)
-      ),
-    }));
-  }, [scaledRows]);
-
-  const budgetForYear = useMemo(() => {
-    const idx = budgetYear - 1;
+  // Budgeted amount per spend-category (via each budget category's "maps to" list) for a given period.
+  const budgetForSelectedPeriod = useMemo(() => {
     const byCategory = {};
-    scaledRows.forEach(row => {
-      byCategory[row.mapsTo] = (byCategory[row.mapsTo] || 0) + row.scaledYears[idx];
+    scaledBudgetCategories.forEach(cat => {
+      (cat.mapsTo || []).forEach(spendCat => {
+        byCategory[spendCat] = (byCategory[spendCat] || 0) + (cat.scaledAmounts[selectedPeriodIndex] || 0);
+      });
     });
     return byCategory;
-  }, [scaledRows, budgetYear]);
+  }, [scaledBudgetCategories, selectedPeriodIndex]);
 
-  // Always compares against Year 1 of the current scenario, regardless of which year is
-  // being browsed on the Budget Plan tab — this is about today's actual spending, not planning.
-  const budgetForYearOne = useMemo(() => {
+  // Always compares against the period marked "active", regardless of which period is being
+  // browsed on the Budget Plan tab — this is about today's actual spending, not planning.
+  const budgetForActivePeriod = useMemo(() => {
     const byCategory = {};
-    scaledRows.forEach(row => {
-      byCategory[row.mapsTo] = (byCategory[row.mapsTo] || 0) + row.scaledYears[0];
+    scaledBudgetCategories.forEach(cat => {
+      (cat.mapsTo || []).forEach(spendCat => {
+        byCategory[spendCat] = (byCategory[spendCat] || 0) + (cat.scaledAmounts[activePeriodIndex] || 0);
+      });
     });
     return byCategory;
-  }, [scaledRows]);
+  }, [scaledBudgetCategories, activePeriodIndex]);
 
   const notifications = useMemo(() => {
     const list = [];
+    const activePeriodLabel = budgetPeriods[activePeriodIndex] || "the active period";
     categories.forEach(cat => {
-      const budgeted = budgetForYearOne[cat] || 0;
+      const budgeted = budgetForActivePeriod[cat] || 0;
       const actual = actualByCategory[cat] || 0;
       if (budgeted > 0 && actual > budgeted) {
         list.push({
           id: `over-${cat}`,
           tone: "warning",
-          text: `${cat} is over budget — ${formatMoney(actual)} logged against ${formatMoney(budgeted)} planned for Year 1 (${scenario}).`,
+          text: `${cat} is over budget — ${formatMoney(actual)} logged against ${formatMoney(budgeted)} planned for ${activePeriodLabel}${budgetScenarioEnabled ? ` (${budgetScenario})` : ""}.`,
         });
       }
     });
-    if (transactions.length > 0 && balance < monthlySetAside) {
+    if (transactions.length > 0 && budgetAveragePerPeriod > 0 && balance < budgetAveragePerPeriod) {
       list.push({
         id: "low-balance",
         tone: "warning",
-        text: `Your balance (${formatMoney(balance)}) is below your suggested monthly set-aside of ${formatMoney(monthlySetAside)}.`,
+        text: `Your balance (${formatMoney(balance)}) is below your average budgeted amount per period (${formatMoney(budgetAveragePerPeriod)}).`,
       });
     }
     if (transactions.length === 0) {
@@ -690,7 +687,7 @@ export default function CampCash() {
       }
     });
     return list;
-  }, [categories, budgetForYearOne, actualByCategory, balance, monthlySetAside, transactions, scenario, fds]);
+  }, [categories, budgetForActivePeriod, actualByCategory, balance, budgetAveragePerPeriod, transactions, budgetPeriods, activePeriodIndex, budgetScenarioEnabled, budgetScenario, fds]);
 
   const unseenNotifCount = notifications.filter(n => !seenNotifIds.has(n.id)).length;
 
@@ -777,6 +774,137 @@ export default function CampCash() {
     setTransactions(prev => [...prev, ...withIds]);
     setNextId(idCounter);
     setSettingsMessage(`Loaded ${withIds.length} sample transactions across the last 3 months.`);
+  }
+
+  function addBudgetPeriod() {
+    setBudgetPeriods(prev => [...prev, `Period ${prev.length + 1}`]);
+    setBudgetCategories(prev => prev.map(cat => ({ ...cat, amounts: [...cat.amounts, 0] })));
+  }
+
+  function renameBudgetPeriod(index, name) {
+    setBudgetPeriods(prev => prev.map((p, i) => (i === index ? name : p)));
+  }
+
+  function deleteBudgetPeriod(index) {
+    if (budgetPeriods.length <= 1) {
+      setBudgetMessage("You need at least one period.");
+      return;
+    }
+    setBudgetPeriods(prev => prev.filter((_, i) => i !== index));
+    setBudgetCategories(prev => prev.map(cat => ({ ...cat, amounts: cat.amounts.filter((_, i) => i !== index) })));
+    setSelectedPeriodIndex(i => (i >= index ? Math.max(0, i - 1) : i));
+    setActivePeriodIndex(i => (i >= index ? Math.max(0, i - 1) : i));
+  }
+
+  function addBudgetCategory() {
+    setBudgetCategories(prev => [...prev, {
+      id: nextBudgetCategoryId, name: "New Category", mapsTo: [], variable: false,
+      amounts: budgetPeriods.map(() => 0),
+    }]);
+    setNextBudgetCategoryId(id => id + 1);
+  }
+
+  function updateBudgetCategory(id, patch) {
+    setBudgetCategories(prev => prev.map(cat => (cat.id === id ? { ...cat, ...patch } : cat)));
+  }
+
+  function updateBudgetCategoryAmount(id, periodIndex, value) {
+    const num = parseFloat(value);
+    setBudgetCategories(prev => prev.map(cat =>
+      cat.id === id ? { ...cat, amounts: cat.amounts.map((a, i) => (i === periodIndex ? (isNaN(num) ? 0 : num) : a)) } : cat
+    ));
+  }
+
+  function deleteBudgetCategory(id) {
+    setBudgetCategories(prev => prev.filter(cat => cat.id !== id));
+  }
+
+  function triggerBudgetImport() {
+    if (budgetCsvInputRef.current) budgetCsvInputRef.current.click();
+  }
+
+  function exportBudgetCSV() {
+    const header = ["Category", "Maps To", "Variable", ...budgetPeriods];
+    const rows = budgetCategories.map(cat => [
+      cat.name,
+      (cat.mapsTo || []).join(", "),
+      cat.variable ? "Yes" : "No",
+      ...cat.amounts,
+    ]);
+    const csvText = [header, ...rows].map(r => r.map(csvEscape).join(",")).join("\r\n");
+    const blob = new Blob([csvText], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `campcash-budget-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    setBudgetMessage("Budget CSV downloaded.");
+  }
+
+  function handleBudgetCSVSelected(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const rows = parseCSV(String(reader.result));
+        if (rows.length < 2) {
+          setBudgetMessage("That CSV doesn't have any data rows.");
+          return;
+        }
+        const headers = rows[0].map(h => h.trim());
+        const catIdx = headers.findIndex(h => h.toLowerCase() === "category");
+        const mapsIdx = headers.findIndex(h => h.toLowerCase() === "maps to");
+        const varIdx = headers.findIndex(h => h.toLowerCase() === "variable");
+        if (catIdx === -1) {
+          setBudgetMessage("CSV needs at least a Category column.");
+          return;
+        }
+        const metaIdxSet = new Set([catIdx, mapsIdx, varIdx].filter(i => i !== -1));
+        const periodIdxs = headers.map((_, i) => i).filter(i => !metaIdxSet.has(i));
+        const periods = periodIdxs.map(i => headers[i]);
+        let idCounter = 1;
+        const newCategories = [];
+        rows.slice(1).forEach(r => {
+          const name = (r[catIdx] || "").trim();
+          if (!name) return;
+          const mapsTo = mapsIdx !== -1 ? (r[mapsIdx] || "").split(",").map(s => s.trim()).filter(Boolean) : [];
+          const variable = varIdx !== -1 ? /^y/i.test((r[varIdx] || "").trim()) : false;
+          const amounts = periodIdxs.map(i => parseFloat(r[i]) || 0);
+          newCategories.push({ id: idCounter++, name, mapsTo, variable, amounts });
+        });
+        if (!newCategories.length || periods.length === 0) {
+          setBudgetMessage("Couldn't find any valid category rows or period columns in that CSV.");
+          return;
+        }
+        setPendingBudgetImport({ periods, categories: newCategories, nextId: idCounter });
+        setBudgetImportConfirming(true);
+      } catch (err) {
+        setBudgetMessage("Couldn't read that CSV file.");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  }
+
+  function confirmBudgetImport() {
+    if (!pendingBudgetImport) return;
+    setBudgetPeriods(pendingBudgetImport.periods);
+    setBudgetCategories(pendingBudgetImport.categories);
+    setNextBudgetCategoryId(pendingBudgetImport.nextId);
+    setSelectedPeriodIndex(0);
+    setActivePeriodIndex(0);
+    setBudgetMessage(`Imported ${pendingBudgetImport.categories.length} categories across ${pendingBudgetImport.periods.length} periods.`);
+    setPendingBudgetImport(null);
+    setBudgetImportConfirming(false);
+  }
+
+  function cancelBudgetImport() {
+    setPendingBudgetImport(null);
+    setBudgetImportConfirming(false);
   }
 
   function addFD() {
@@ -916,7 +1044,12 @@ export default function CampCash() {
       categories,
       transactions,
       nextId,
-      scenario,
+      budgetPeriods,
+      budgetCategories,
+      nextBudgetCategoryId,
+      activePeriodIndex,
+      budgetScenarioEnabled,
+      budgetScenario,
       lastRolloverMonth,
       fds,
       nextFdId,
@@ -1156,18 +1289,20 @@ export default function CampCash() {
     });
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(monthlyPivotRows), "Pivot - Monthly Summary");
 
-    // --- Budget vs Actual (Year 1, current scenario) ---
-    const budgetRows = categories.filter(c => c !== "Transport / Other").map(cat => {
-      const budgeted = budgetForYearOne[cat] || 0;
+    // --- Budget vs Actual (active period) ---
+    const activePeriodLabelForExport = budgetPeriods[activePeriodIndex] || "Active Period";
+    const budgetedKey = `Budgeted (${activePeriodLabelForExport}${budgetScenarioEnabled ? ", " + budgetScenario : ""})`;
+    const budgetRows = categories.map(cat => {
+      const budgeted = budgetForActivePeriod[cat] || 0;
       const actual = actualByCategory[cat] || 0;
       return {
         Category: cat,
-        [`Budgeted (Year 1, ${scenario})`]: budgeted,
+        [budgetedKey]: budgeted,
         "Actual Logged": actual,
         Variance: budgeted - actual,
         "% Used": budgeted ? Math.round((actual / budgeted) * 1000) / 10 : null,
       };
-    }).filter(r => r["Actual Logged"] > 0 || r[`Budgeted (Year 1, ${scenario})`] > 0);
+    }).filter(r => r["Actual Logged"] > 0 || r[budgetedKey] > 0);
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(budgetRows), "Budget vs Actual");
 
     // --- Summary ---
@@ -1179,9 +1314,10 @@ export default function CampCash() {
       { Metric: `${periodLabel} — Money In`, Value: periodIn },
       { Metric: `${periodLabel} — Money Out`, Value: periodOut },
       { Metric: `${periodLabel} — Net`, Value: periodIn - periodOut },
-      { Metric: "Scenario", Value: scenario },
-      { Metric: "5-Year Budget Total", Value: fiveYearTotal },
-      { Metric: "Suggested Monthly Set-Aside", Value: monthlySetAside },
+      { Metric: "Active Budget Period", Value: activePeriodLabelForExport },
+      { Metric: "Scenario Planning", Value: budgetScenarioEnabled ? budgetScenario : "Off" },
+      { Metric: "Budget Grand Total (all periods)", Value: budgetGrandTotal },
+      { Metric: "Average Budget Per Period", Value: budgetAveragePerPeriod },
       { Metric: "Total Transactions Logged", Value: transactions.length },
       { Metric: "Active Fixed Deposits", Value: activeFds.length },
       { Metric: "FD Principal Locked", Value: fdTotalPrincipal },
@@ -1238,7 +1374,12 @@ export default function CampCash() {
       if (typeof saved.account.name === "string") setAccountName(saved.account.name);
       if (typeof saved.account.email === "string") setAccountEmail(saved.account.email);
     }
-    if (typeof saved.scenario === "string") setScenario(saved.scenario);
+    if (Array.isArray(saved.budgetPeriods)) setBudgetPeriods(saved.budgetPeriods);
+    if (Array.isArray(saved.budgetCategories)) setBudgetCategories(saved.budgetCategories);
+    if (typeof saved.nextBudgetCategoryId === "number") setNextBudgetCategoryId(saved.nextBudgetCategoryId);
+    if (typeof saved.activePeriodIndex === "number") setActivePeriodIndex(saved.activePeriodIndex);
+    if (typeof saved.budgetScenarioEnabled === "boolean") setBudgetScenarioEnabled(saved.budgetScenarioEnabled);
+    if (typeof saved.budgetScenario === "string") setBudgetScenario(saved.budgetScenario);
     if (typeof saved.lastRolloverMonth === "string") setLastRolloverMonth(saved.lastRolloverMonth);
     if (Array.isArray(saved.fds)) setFds(saved.fds);
     if (typeof saved.nextFdId === "number") setNextFdId(saved.nextFdId);
@@ -1539,7 +1680,7 @@ export default function CampCash() {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
             <span className="font-semibold text-[16px] truncate max-w-[55vw] sm:max-w-none">
-              {activeView === "home" ? (accountName ? `${accountName}'s Wallet` : "My Wallet") : activeView === "fds" ? "Fixed Deposits" : activeView === "budget" ? "5-Year Budget Plan" : activeView === "analytics" ? "Analytics" : "Settings"}
+              {activeView === "home" ? (accountName ? `${accountName}'s Wallet` : "My Wallet") : activeView === "fds" ? "Fixed Deposits" : activeView === "budget" ? "Budget Plan" : activeView === "analytics" ? "Analytics" : "Settings"}
             </span>
             {activeView === "home" && <span className="w-1.5 h-1.5 rounded-full bg-green-500" />}
           </div>
@@ -2247,110 +2388,240 @@ export default function CampCash() {
 
         {activeView === "budget" && (
           <>
-            {/* Scenario selector */}
-            <div className={`rounded-2xl border ${border} ${cardBg} p-5 mb-5`}>
-              <div className="flex items-center justify-between mb-3">
-                <span className="font-semibold text-[14px]">Scenario</span>
-                <span className={`text-[12px] ${textMuted}`}>Applies to personal & travel variable costs only</span>
+            {budgetMessage && (
+              <div className={`mb-5 rounded-lg border ${dark ? "border-blue-900 bg-blue-500/10 text-blue-300" : "border-blue-200 bg-blue-50 text-blue-700"} text-[13px] px-4 py-2.5 flex items-center justify-between`}>
+                {budgetMessage}
+                <button onClick={() => setBudgetMessage("")} className="hover:opacity-70">×</button>
               </div>
-              <div className="flex items-center gap-2">
-                {["Conservative", "Comfortable", "High"].map(s => (
-                  <button
-                    key={s}
-                    onClick={() => setScenario(s)}
-                    className={`px-4 py-2 rounded-lg text-[13px] font-medium border transition-colors ${
-                      scenario === s
-                        ? "bg-blue-600 border-blue-600 text-white"
-                        : `${border} ${textMuted} hover:${dark ? "bg-neutral-800" : "bg-neutral-50"}`
-                    }`}
-                  >
-                    {s} · {SCENARIO_MULTIPLIERS[s]}x
+            )}
+
+            {budgetImportConfirming && pendingBudgetImport && (
+              <div className={`mb-5 rounded-lg border ${dark ? "border-amber-900 bg-amber-500/10" : "border-amber-200 bg-amber-50"} px-4 py-3 flex items-center justify-between flex-wrap gap-2`}>
+                <span className="text-[13px] font-medium text-amber-700">
+                  This will replace your current budget with {pendingBudgetImport.categories.length} categories across {pendingBudgetImport.periods.length} periods. Continue?
+                </span>
+                <div className="flex items-center gap-2">
+                  <button onClick={confirmBudgetImport} className="px-3 py-1.5 rounded-lg text-[13px] font-medium bg-amber-600 text-white hover:bg-amber-700">
+                    Replace Budget
                   </button>
+                  <button onClick={cancelBudgetImport} className={`px-3 py-1.5 rounded-lg text-[13px] font-medium border ${border} ${textMuted}`}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Periods */}
+            <div className={`rounded-2xl border ${border} ${cardBg} p-5 mb-5`}>
+              <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                <span className="font-semibold text-[14px]">Periods</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={triggerBudgetImport}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12.5px] font-medium border ${border} ${textMuted} hover:${dark ? "bg-neutral-800" : "bg-neutral-50"}`}
+                  >
+                    <Upload size={13} /> Import Budget (CSV)
+                  </button>
+                  <button
+                    onClick={exportBudgetCSV}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12.5px] font-medium border ${border} ${textMuted} hover:${dark ? "bg-neutral-800" : "bg-neutral-50"}`}
+                  >
+                    <Download size={13} /> Download as CSV
+                  </button>
+                  <input ref={budgetCsvInputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleBudgetCSVSelected} />
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 flex-wrap mb-3">
+                {budgetPeriods.map((p, i) => (
+                  <div key={i} className="flex items-center gap-0.5">
+                    <button
+                      onClick={() => setSelectedPeriodIndex(i)}
+                      className={`px-3 py-1.5 rounded-lg text-[13px] font-medium border transition-colors ${
+                        selectedPeriodIndex === i
+                          ? "bg-blue-600 border-blue-600 text-white"
+                          : `${border} ${textMuted} hover:${dark ? "bg-neutral-800" : "bg-neutral-50"}`
+                      }`}
+                    >
+                      {p}
+                    </button>
+                    <button
+                      onClick={() => setActivePeriodIndex(i)}
+                      title={activePeriodIndex === i ? "Active period — checked by notifications" : "Mark as the active period"}
+                      className={`p-1 ${activePeriodIndex === i ? "text-amber-500" : textMuted}`}
+                    >
+                      <Star size={14} fill={activePeriodIndex === i ? "currentColor" : "none"} />
+                    </button>
+                  </div>
                 ))}
+                <button
+                  onClick={addBudgetPeriod}
+                  className={`px-3 py-1.5 rounded-lg text-[13px] font-medium border ${border} ${textMuted} hover:${dark ? "bg-neutral-800" : "bg-neutral-50"}`}
+                >
+                  + Add Period
+                </button>
+              </div>
+              <div className="flex items-center gap-2 mb-2">
+                <input
+                  type="text"
+                  value={budgetPeriods[selectedPeriodIndex] || ""}
+                  onChange={e => renameBudgetPeriod(selectedPeriodIndex, e.target.value)}
+                  className={`rounded-lg border ${inputBg} px-3 py-1.5 text-[13px] outline-none max-w-[220px]`}
+                />
+                <button onClick={() => deleteBudgetPeriod(selectedPeriodIndex)} className={`text-[12.5px] ${textMuted} hover:text-red-500`}>
+                  Delete this period
+                </button>
+              </div>
+              <div className={`text-[11px] ${textMuted}`}>
+                ★ marks the active period — the one the notification bell checks for over-budget alerts, independent of whichever period you're viewing here.
               </div>
             </div>
 
             {/* Summary cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-5">
               <div className={`rounded-2xl border ${border} ${cardBg} p-5`}>
-                <div className={`text-[12px] ${textMuted} mb-1`}>Selected Scenario</div>
-                <div className="text-2xl font-bold">{scenario}</div>
-                <div className={`text-[11px] ${textMuted} mt-1`}>{SCENARIO_MULTIPLIERS[scenario]}x on variable costs</div>
+                <div className={`text-[12px] ${textMuted} mb-1`}>Categories</div>
+                <div className="text-2xl font-bold">{budgetCategories.length}</div>
               </div>
               <div className={`rounded-2xl border ${border} ${cardBg} p-5`}>
-                <div className={`text-[12px] ${textMuted} mb-1`}>5-Year Total</div>
-                <div className="text-2xl font-bold">{formatMoney(fiveYearTotal)}</div>
-                <div className={`text-[11px] ${textMuted} mt-1`}>All heads, Years 1–5</div>
+                <div className={`text-[12px] ${textMuted} mb-1`}>{budgetPeriods[selectedPeriodIndex]} Total</div>
+                <div className="text-2xl font-bold">{formatMoney(periodTotals[selectedPeriodIndex] || 0)}</div>
               </div>
               <div className={`rounded-2xl border ${border} ${cardBg} p-5`}>
-                <div className={`text-[12px] ${textMuted} mb-1`}>Suggested Monthly Set-Aside</div>
-                <div className="text-2xl font-bold">{formatMoney(monthlySetAside)}</div>
-                <div className={`text-[11px] ${textMuted} mt-1`}>5-year total ÷ 60 months</div>
+                <div className={`text-[12px] ${textMuted} mb-1`}>Grand Total (all periods)</div>
+                <div className="text-2xl font-bold">{formatMoney(budgetGrandTotal)}</div>
+              </div>
+              <div className={`rounded-2xl border ${border} ${cardBg} p-5`}>
+                <div className={`text-[12px] ${textMuted} mb-1`}>Average / Period</div>
+                <div className="text-2xl font-bold">{formatMoney(budgetAveragePerPeriod)}</div>
               </div>
             </div>
 
-            {/* Year selector */}
+            {/* Scenario planning */}
             <div className={`rounded-2xl border ${border} ${cardBg} p-5 mb-5`}>
-              <div className="flex items-center justify-between mb-4">
-                <span className="font-semibold text-[14px]">Year-wise totals</span>
+              <div className="flex items-center justify-between mb-1">
+                <div>
+                  <div className="text-[14px] font-semibold">Scenario Planning</div>
+                  <div className={`text-[12px] ${textMuted}`}>Optional — scales categories marked "variable" by a multiplier</div>
+                </div>
+                <button
+                  onClick={() => setBudgetScenarioEnabled(v => !v)}
+                  className={`w-11 rounded-full relative transition-colors ${budgetScenarioEnabled ? "bg-blue-500" : "bg-neutral-300"}`}
+                  style={{ height: 22 }}
+                >
+                  <span className={`absolute top-0.5 w-4.5 h-4.5 rounded-full bg-white transition-all ${budgetScenarioEnabled ? "left-6" : "left-0.5"}`} style={{ width: 18, height: 18 }} />
+                </button>
               </div>
-              <div className="flex items-center gap-2 mb-4">
-                {[1, 2, 3, 4, 5].map(y => (
-                  <button
-                    key={y}
-                    onClick={() => setBudgetYear(y)}
-                    className={`px-4 py-2 rounded-lg text-[13px] font-medium border transition-colors ${
-                      budgetYear === y
-                        ? "bg-blue-600 border-blue-600 text-white"
-                        : `${border} ${textMuted} hover:${dark ? "bg-neutral-800" : "bg-neutral-50"}`
-                    }`}
-                  >
-                    Year {y}
-                  </button>
-                ))}
-              </div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-bold">{formatMoney(yearTotals[budgetYear - 1])}</span>
-                <span className={`text-[13px] ${textMuted}`}>budgeted for Year {budgetYear} at {scenario}</span>
-              </div>
+              {budgetScenarioEnabled && (
+                <div className="flex items-center gap-2 mt-3">
+                  {["Conservative", "Comfortable", "High"].map(s => (
+                    <button
+                      key={s}
+                      onClick={() => setBudgetScenario(s)}
+                      className={`px-4 py-2 rounded-lg text-[13px] font-medium border transition-colors ${
+                        budgetScenario === s
+                          ? "bg-blue-600 border-blue-600 text-white"
+                          : `${border} ${textMuted} hover:${dark ? "bg-neutral-800" : "bg-neutral-50"}`
+                      }`}
+                    >
+                      {s} · {SCENARIO_MULTIPLIERS[s]}x
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* Group summary */}
+            {/* Categories editor */}
             <div className={`rounded-2xl border ${border} ${cardBg} overflow-hidden mb-5`}>
-              <div className="px-6 py-4">
-                <span className="font-semibold text-[15px]">Spending Groups — Year {budgetYear}</span>
+              <div className="px-6 py-4 flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <span className="font-semibold text-[15px]">Categories — {budgetPeriods[selectedPeriodIndex]}</span>
+                  <div className={`text-[12px] ${textMuted} mt-0.5`}>Amounts shown are for the period selected above. "Maps To" links a category to your real spending headers, comma-separated.</div>
+                </div>
+                <button onClick={addBudgetCategory} className="px-3 py-1.5 rounded-lg text-[12.5px] font-medium bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-1.5">
+                  <Plus size={13} /> Add Category
+                </button>
               </div>
               <div className="overflow-x-auto">
-              <table className="w-full text-[13.5px]">
-                <thead>
-                  <tr className={`border-t border-b ${border} ${textMuted}`}>
-                    <th className="text-left font-medium px-6 py-2.5">Group</th>
-                    <th className="text-left font-medium py-2.5">Year {budgetYear}</th>
-                    <th className="text-left font-medium py-2.5">5-Year Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {groupTotals.map(g => (
-                    <tr key={g.group} className={`border-b ${border} ${rowHover}`}>
-                      <td className="px-6 py-3 font-medium">{g.group}</td>
-                      <td className="py-3">{formatMoney(g.years[budgetYear - 1])}</td>
-                      <td className={`py-3 ${textMuted}`}>{formatMoney(g.years.reduce((a, b) => a + b, 0))}</td>
+                <table className="w-full text-[13px]">
+                  <thead>
+                    <tr className={`border-t border-b ${border} ${textMuted}`}>
+                      <th className="text-left font-medium px-6 py-2.5">Category</th>
+                      <th className="text-left font-medium py-2.5">Maps To</th>
+                      <th className="text-left font-medium py-2.5">Variable</th>
+                      <th className="text-left font-medium py-2.5">Amount</th>
+                      <th className="py-2.5"></th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {scaledBudgetCategories.map(cat => (
+                      <tr key={cat.id} className={`border-b ${border} ${rowHover}`}>
+                        <td className="px-6 py-2.5">
+                          <input
+                            type="text"
+                            value={cat.name}
+                            onChange={e => updateBudgetCategory(cat.id, { name: e.target.value })}
+                            className={`rounded border ${inputBg} px-2 py-1 text-[13px] outline-none w-32`}
+                          />
+                        </td>
+                        <td className="py-2.5">
+                          <input
+                            type="text"
+                            value={(cat.mapsTo || []).join(", ")}
+                            onChange={e => updateBudgetCategory(cat.id, { mapsTo: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })}
+                            placeholder="e.g. Mess / Food"
+                            className={`rounded border ${inputBg} px-2 py-1 text-[12px] outline-none w-48`}
+                          />
+                        </td>
+                        <td className="py-2.5">
+                          <input
+                            type="checkbox"
+                            checked={cat.variable}
+                            onChange={e => updateBudgetCategory(cat.id, { variable: e.target.checked })}
+                            className="w-4 h-4"
+                          />
+                        </td>
+                        <td className="py-2.5">
+                          <div className={`flex items-center rounded border ${inputBg} px-2 w-28`}>
+                            <span className={textMuted}>{currency.symbol}</span>
+                            <input
+                              type="number"
+                              value={cat.amounts[selectedPeriodIndex] ?? 0}
+                              onChange={e => updateBudgetCategoryAmount(cat.id, selectedPeriodIndex, e.target.value)}
+                              className="w-full bg-transparent outline-none px-1 py-1 text-[13px]"
+                            />
+                          </div>
+                          {budgetScenarioEnabled && cat.variable && (
+                            <div className={`text-[10px] ${textMuted} mt-0.5`}>→ {formatMoney(cat.scaledAmounts[selectedPeriodIndex] || 0)} at {budgetScenario}</div>
+                          )}
+                        </td>
+                        <td className="py-2.5 pr-4 text-right">
+                          <button onClick={() => deleteBudgetCategory(cat.id)} className={`${textMuted} hover:text-red-500`}>
+                            <Trash2 size={14} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {budgetCategories.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className={`text-center py-8 text-[13px] ${textMuted}`}>
+                          No categories yet — add one above or import a budget CSV.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
 
             {/* Budgeted vs Logged */}
-            <div className={`rounded-2xl border ${border} ${cardBg} overflow-hidden mb-5`}>
+            <div className={`rounded-2xl border ${border} ${cardBg} overflow-hidden`}>
               <div className="px-6 py-4">
-                <span className="font-semibold text-[15px]">Budgeted vs Logged — Year {budgetYear}</span>
-                <div className={`text-[12px] ${textMuted} mt-0.5`}>Comparing the {scenario} plan against what you've actually logged in the ledger so far</div>
+                <span className="font-semibold text-[15px]">Budgeted vs Logged — {budgetPeriods[selectedPeriodIndex]}</span>
+                <div className={`text-[12px] ${textMuted} mt-0.5`}>Comparing this period's budget against what you've actually logged, via each category's "Maps To" list</div>
               </div>
               <div className="px-6 pb-5 flex flex-col gap-3">
-                {categories.filter(c => c !== "Transport / Other").map(cat => {
-                  const budgeted = budgetForYear[cat] || 0;
+                {categories.map(cat => {
+                  const budgeted = budgetForSelectedPeriod[cat] || 0;
                   const actual = actualByCategory[cat] || 0;
                   if (budgeted === 0 && actual === 0) return null;
                   const pct = budgeted > 0 ? Math.min(100, (actual / budgeted) * 100) : 100;
@@ -2360,7 +2631,7 @@ export default function CampCash() {
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-[13px] font-medium">{cat}</span>
                         <span className={`text-[12px] ${over ? "text-red-500" : textMuted}`}>
-                          {formatMoney(actual)} {budgeted > 0 ? `/ ${formatMoney(budgeted)}` : "(not budgeted this year)"}
+                          {formatMoney(actual)} {budgeted > 0 ? `/ ${formatMoney(budgeted)}` : "(not mapped to a budget category)"}
                         </span>
                       </div>
                       <div className={`w-full h-2 rounded-full ${trackBg} overflow-hidden`}>
@@ -2372,44 +2643,11 @@ export default function CampCash() {
                     </div>
                   );
                 })}
-                {Object.keys(actualByCategory).length === 0 && (
+                {Object.keys(budgetForSelectedPeriod).length === 0 && (
                   <div className={`text-[13px] ${textMuted} text-center py-4`}>
-                    Log a few expenses on the Home tab to see them compared against this year's budget.
+                    No budget categories are mapped to a spending category yet — add a "Maps To" value above to see a comparison here.
                   </div>
                 )}
-              </div>
-            </div>
-
-            {/* Full cost head breakdown */}
-            <div className={`rounded-2xl border ${border} ${cardBg} overflow-hidden`}>
-              <div className="px-6 py-4">
-                <span className="font-semibold text-[15px]">Full Cost Head Breakdown — {scenario}</span>
-                <div className={`text-[12px] ${textMuted} mt-0.5`}>From your uploaded College_Budget.xlsx — Budget sheet, rescaled to the selected scenario</div>
-              </div>
-              <div className="overflow-x-auto">
-              <table className="w-full text-[13px]">
-                <thead>
-                  <tr className={`border-t border-b ${border} ${textMuted}`}>
-                    <th className="text-left font-medium px-6 py-2.5">Cost Head</th>
-                    <th className="text-left font-medium py-2.5">Year {budgetYear}</th>
-                    <th className="text-left font-medium py-2.5">5-Year Total</th>
-                    <th className="text-left font-medium py-2.5 pr-6">Notes</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {scaledRows.map(row => (
-                    <tr key={row.head} className={`border-b ${border} ${rowHover}`}>
-                      <td className="px-6 py-2.5">
-                        {row.head}
-                        {row.variable && <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded ${dark ? "bg-blue-500/10 text-blue-400" : "bg-blue-50 text-blue-600"}`}>variable</span>}
-                      </td>
-                      <td className="py-2.5">{formatMoney(row.scaledYears[budgetYear - 1])}</td>
-                      <td className={`py-2.5 ${textMuted}`}>{formatMoney(row.scaledYears.reduce((a, b) => a + b, 0))}</td>
-                      <td className={`py-2.5 pr-6 ${textMuted}`}>{row.notes}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
               </div>
             </div>
           </>
