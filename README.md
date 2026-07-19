@@ -1,10 +1,23 @@
 # CampCash
 
-A personal budgeting and wallet tracker — built for everyday spending, fixed deposits, and a real multi-year budget plan, all in one dashboard.
+![React](https://img.shields.io/badge/React-61DAFB?style=flat&logo=react&logoColor=black)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=flat&logo=tailwind-css&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat&logo=vite&logoColor=white)
+![Vercel](https://img.shields.io/badge/Deployed_on-Vercel-000000?style=flat&logo=vercel&logoColor=white)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat)
+
+A personal budgeting and wallet tracker — built for everyday spending, fixed deposits, and a fully custom budget plan, all in one dashboard.
 
 > **A note on how this was made:** The UI/UX design was created by hand in **Figma**. All of the actual coding — every component, calculation, and feature below — was written by **Claude AI**, iterated on conversationally rather than typed by hand line by line.
 
-**🔗 Live demo:** [camp-cash-sigma.vercel.app](https://camp-cash-sigma.vercel.app/)
+**🔗 Live Deployment:** [campcash.vercel.app](https://campcash.vercel.app/)
+
+<!--
+Add a few screenshots here to give visitors a preview without clicking through —
+e.g. the Home dashboard, Budget Plan tab, and dark mode. Drop image files into
+a /screenshots folder in the repo and reference them like:
+![Home dashboard](./screenshots/home.png)
+-->
 
 ---
 
@@ -27,10 +40,12 @@ A personal budgeting and wallet tracker — built for everyday spending, fixed d
 - Live maturity date and maturity amount calculations, with a progress bar toward maturity
 - Optional automatic wallet debit when you open an FD, and automatic credit when you mark it matured or withdraw early — both fully opt-out if you're just tracking
 
-### 📊 A Real Budget Plan
-- A full 5-year budget, broken down by cost head and year, imported directly from a spreadsheet
-- Conservative / Comfortable / High scenario multiplier, applied only to the actual variable, personal costs — fixed costs stay fixed
-- "Budgeted vs Logged" comparison, showing how real spending stacks up against the plan
+### 📊 A Fully Custom Budget Plan
+- Define your own periods (months, years, quarters — whatever fits) and your own budget categories, separate from your spending categories
+- Link each budget category to real spending headers via "Maps To," so actual spending flows into a live comparison automatically
+- Optional scenario planning — a Conservative / Comfortable / High multiplier, applied only to categories you mark "variable"
+- Import a full budget from a CSV, or export your current one as a starting template
+- Comes pre-loaded with a simple example budget so there's something to explore immediately
 
 ### 📈 Analytics
 - Balance trend over time
@@ -39,7 +54,7 @@ A personal budgeting and wallet tracker — built for everyday spending, fixed d
 - All built with live charts, not static images
 
 ### 🔔 Notifications
-- Over-budget alerts per category
+- Over-budget alerts per category, checked against whichever budget period is marked active
 - Low-balance warnings
 - Reminders when a Fixed Deposit has matured but hasn't been closed out yet
 
@@ -48,6 +63,7 @@ A personal budgeting and wallet tracker — built for everyday spending, fixed d
 - Export a multi-sheet **Excel workbook** — ledger plus pivot-style analysis sheets (spend by category, income by source, payment method, monthly summary, budget vs actual)
 - Export a clean **PDF summary**, print-ready
 - Import transactions from **CSV**, or restore a complete **JSON backup**
+- Import or export your **budget** as CSV independently of the transaction ledger
 - One-click **sample data** to explore the app without entering anything by hand
 
 ### ☁️ Cloud Sync
@@ -71,83 +87,53 @@ A personal budgeting and wallet tracker — built for everyday spending, fixed d
 
 ---
 
-## Try It Yourself
+## Using Cloud Sync
 
-You've got two paths to get this running — pick whichever fits.
+Cloud Sync keeps your wallet identical across every device you use, backed by a private GitHub Gist — no server, no account system, no billing.
 
-### Option A: StackBlitz (no installs, runs in your browser)
+**First device:**
+1. On GitHub, go to **Settings → Developer settings → Personal access tokens → Tokens (classic) → Generate new token**, and check only the **gist** scope
+2. In CampCash, go to **Settings → Cloud Sync**, paste that token in, leave the Gist ID blank
+3. Click **Connect & Sync** — this creates a new private gist and shows you its ID
 
-The fastest way to poke around or fork your own copy.
+**Any other device:**
+1. Paste the **same token** and that **Gist ID**
+2. Click **Connect** — it'll offer to load the synced data before overwriting anything locally
 
-1. Go to [stackblitz.com](https://stackblitz.com) and start a new **React** project (search "react" in the template picker, or go straight to `stackblitz.com/fork/react`)
-2. In the file panel, create a new file `src/campcash-app.tsx` and paste in the app's code
-3. Replace `src/App.tsx` with:
-   ```tsx
-   import CampCash from './campcash-app';
-   export default function App() {
-     return <CampCash />;
-   }
-   ```
-4. Open the terminal at the bottom and install the libraries the app needs:
-   ```bash
-   npm install lucide-react recharts xlsx
-   ```
-5. Install Tailwind — **use v3, not the current default v4**, since v4's setup is a different, incompatible flow:
-   ```bash
-   npm install -D tailwindcss@3 postcss autoprefixer
-   npx tailwindcss init -p
-   ```
-6. In `tailwind.config.js`, set:
-   ```js
-   content: ["./index.html", "./src/**/*.{js,jsx,ts,tsx}"],
-   ```
-7. In `src/index.css`, replace everything with:
-   ```css
-   @tailwind base;
-   @tailwind components;
-   @tailwind utilities;
-   ```
-8. **Restart the dev server** (`Ctrl+C` in the terminal, then `npm run dev` again) — Tailwind's config often doesn't take effect on a hot-reload alone, only on a fresh boot.
+**After that**, it's automatic — every change debounces and pushes in the background, with a status indicator showing Syncing / Synced / an error if GitHub can't be reached. **Sync Now** and **Disconnect** are both available too; disconnecting only stops syncing, it never touches the gist itself.
 
-If a paste into the terminal seems to do nothing when you hit Enter, click directly into the terminal first (`Ctrl+C` to clear it, then type the command) — StackBlitz's terminal occasionally needs focus reasserted before it accepts input.
+Treat the token like a password — anyone who has it can read or write that gist.
 
-### Option B: Locally, with VS Code
+---
 
-1. Install [Node.js](https://nodejs.org) (LTS version)
-2. Scaffold a project:
-   ```bash
-   npm create vite@latest campcash -- --template react
-   cd campcash
-   npm install
-   ```
-3. Install dependencies:
-   ```bash
-   npm install lucide-react recharts xlsx
-   npm install -D tailwindcss@3 postcss autoprefixer
-   npx tailwindcss init -p
-   ```
-4. Configure `tailwind.config.js` and `src/index.css` exactly as in steps 6–7 above
-5. Drop `campcash-app.jsx` into `src/`, and point `App.jsx` at it the same way as step 3 above
-6. Run it:
-   ```bash
-   npm run dev
-   ```
+## Using the Budget Plan
 
-### Deploying to Vercel (a real, always-on URL)
+The Budget Plan tab is a blank slate by default (with a small example loaded in), not tied to any particular life stage.
 
-Once your code is pushed to a GitHub repo (StackBlitz has a built-in "Create a repository" option in the sidebar, or push manually from a local clone):
+- **Periods** — add, rename, or delete freely from the Periods panel. Click a period to view/edit it; click the ★ next to any period to mark it "active" — that's the one notifications check for over-budget alerts, independent of whichever period you're currently looking at.
+- **Categories** — each has a name, an optional **Maps To** field (comma-separated spending categories it should compare against), a **Variable** checkbox for scenario planning, and an amount per period.
+- **Scenario Planning** — off by default. Turn it on to apply a Conservative / Comfortable / High multiplier to any category marked "variable"; everything else stays fixed regardless of scenario.
+- **Budgeted vs Logged** — automatically compares real transactions against the selected period's budget, using each category's Maps To list.
+- **Import/Export CSV** — the format is `Category, Maps To, Variable, <one column per period>`. Importing replaces the entire budget (with a confirmation step first); exporting doubles as a downloadable template for editing in a spreadsheet and reimporting.
 
-1. Go to [vercel.com](https://vercel.com) → sign in with GitHub
-2. **Add New... → Project**, then import your repo
-3. Vercel auto-detects Vite — leave the default build settings
-4. Before deploying, open `package.json` and make sure the build script is:
-   ```json
-   "build": "vite build",
-   ```
-   not `"tsc -b && vite build"` — the stricter TypeScript type-check isn't needed here and will fail the build over things that don't actually affect the app (missing type annotations on plain JSX, mostly). You can edit this straight on GitHub if it's easier than through StackBlitz.
-5. Click **Deploy**
+> **Not sure where to start?** Click **Download as CSV** on the Budget Plan tab first — it exports whatever's currently loaded (including the example budget) as a ready-made template, so you can see the exact format before building your own.
 
-A minute later you'll have a live `.vercel.app` URL — no server to keep running, no tab that needs to stay open, works from any device. Any future commit to the repo redeploys it automatically.
+---
+
+## Known Limitations
+
+Being upfront about where the edges are:
+
+- **"Maps To" mappings fail silently.** If a budget category points to a spending category that gets renamed or deleted, the comparison just quietly stops showing anything — no warning, no error.
+- **No undo when deleting a budget period or category.** Unlike transactions (which have a 6-second undo), removing a period or category in the Budget Plan tab is instant and permanent.
+- **The ★ active period needs manual upkeep.** Since periods can be named anything, the app can't infer which one is "current" — if you forget to move the marker forward, the notification bell keeps checking a stale period indefinitely.
+- **Storage is per-browser unless Cloud Sync is on.** Opening the app in a different browser or device shows an empty wallet by default — Cloud Sync (or a manual JSON export/import) is what actually carries data across.
+- **No amount or duplicate-name validation.** Negative numbers and duplicate category names are accepted without warning.
+- **Excel's "pivot" sheets aren't real Excel PivotTables.** They're precomputed summary tables shaped like pivot output, not the interactive, draggable kind you'd rebuild inside Excel — the export library used doesn't support generating those.
+
+## License
+
+MIT — see [LICENSE](./LICENSE). Use it, fork it, build on it.
 
 ---
 
