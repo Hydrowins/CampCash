@@ -3,7 +3,7 @@ import {
   Wallet, Bell, MoreVertical, Home, BarChart2, PieChart as PieChartIcon, Settings,
   ArrowDownCircle, ArrowUpCircle, Search, SlidersHorizontal, ChevronDown, ChevronUp,
   Plus, Minus, Calendar, Moon, Sun, Trash2, User, Download, Upload, FileText, FileSpreadsheet,
-  AlertTriangle, Sparkles, Landmark, Copy, Cloud, Star
+  AlertTriangle, Sparkles, Landmark, Copy, Cloud, Star, Monitor
 } from "lucide-react";
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
@@ -220,7 +220,9 @@ function parseCSV(text) {
 }
 
 export default function CampCash() {
-  const [dark, setDark] = useState(false);
+  const [themeMode, setThemeMode] = useState("system"); // "light" | "dark" | "system"
+  const [systemPrefersDark, setSystemPrefersDark] = useState(false);
+  const dark = themeMode === "system" ? systemPrefersDark : themeMode === "dark";
   const [activeView, setActiveView] = useState("home");
   const [transactions, setTransactions] = useState(initialTransactions);
   const [nextId, setNextId] = useState(initialTransactions.length + 1);
@@ -312,6 +314,20 @@ export default function CampCash() {
   const [cloudSyncStatus, setCloudSyncStatus] = useState("disabled"); // disabled | connecting | syncing | synced | error
   const [cloudLastSyncedAt, setCloudLastSyncedAt] = useState(null);
 
+  // Track the system's light/dark preference live, for "System" theme mode
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    setSystemPrefersDark(mq.matches);
+    const handler = e => setSystemPrefersDark(e.matches);
+    if (mq.addEventListener) mq.addEventListener("change", handler);
+    else mq.addListener(handler);
+    return () => {
+      if (mq.removeEventListener) mq.removeEventListener("change", handler);
+      else mq.removeListener(handler);
+    };
+  }, []);
+
   // Load any previously saved wallet on first mount
   useEffect(() => {
     let cancelled = false;
@@ -331,7 +347,8 @@ export default function CampCash() {
           }
           if (typeof saved.accountName === "string") setAccountName(saved.accountName);
           if (typeof saved.accountEmail === "string") setAccountEmail(saved.accountEmail);
-          if (typeof saved.dark === "boolean") setDark(saved.dark);
+          if (typeof saved.themeMode === "string") setThemeMode(saved.themeMode);
+          else if (typeof saved.dark === "boolean") setThemeMode(saved.dark ? "dark" : "light");
           if (Array.isArray(saved.budgetPeriods)) setBudgetPeriods(saved.budgetPeriods);
           if (Array.isArray(saved.budgetCategories)) setBudgetCategories(saved.budgetCategories);
           if (typeof saved.nextBudgetCategoryId === "number") setNextBudgetCategoryId(saved.nextBudgetCategoryId);
@@ -363,7 +380,7 @@ export default function CampCash() {
       try {
         const payload = {
           transactions, nextId, sources, categories, currency,
-          openingBalance, accountName, accountEmail, dark, lastRolloverMonth,
+          openingBalance, accountName, accountEmail, themeMode, lastRolloverMonth,
           budgetPeriods, budgetCategories, nextBudgetCategoryId, activePeriodIndex, budgetScenarioEnabled, budgetScenario,
           fds, nextFdId, githubToken, gistId, cloudConnected, cloudLastSyncedAt,
           savedAt: new Date().toISOString(),
@@ -375,7 +392,7 @@ export default function CampCash() {
       }
     }, 500);
     return () => clearTimeout(handle);
-  }, [transactions, nextId, sources, categories, currency, openingBalance, accountName, accountEmail, dark, lastRolloverMonth, budgetPeriods, budgetCategories, nextBudgetCategoryId, activePeriodIndex, budgetScenarioEnabled, budgetScenario, fds, nextFdId, githubToken, gistId, cloudConnected, cloudLastSyncedAt, dataLoaded]);
+  }, [transactions, nextId, sources, categories, currency, openingBalance, accountName, accountEmail, themeMode, lastRolloverMonth, budgetPeriods, budgetCategories, nextBudgetCategoryId, activePeriodIndex, budgetScenarioEnabled, budgetScenario, fds, nextFdId, githubToken, gistId, cloudConnected, cloudLastSyncedAt, dataLoaded]);
 
 
   // Month-end rollover: for every calendar month that has fully passed since we last checked,
@@ -1644,7 +1661,7 @@ export default function CampCash() {
             <div className="fixed inset-0 z-10" onClick={() => setPeriodOpen(false)} />
           )}
           <button
-            onClick={() => setDark(d => !d)}
+            onClick={() => setThemeMode(dark ? "light" : "dark")}
             className={`flex items-center justify-between px-3 py-2.5 rounded-lg border ${border} text-[13px] font-medium`}
           >
             <span className="flex items-center gap-2">
@@ -1718,7 +1735,7 @@ export default function CampCash() {
               {menuOpen && (
                 <div className={`absolute right-0 top-8 z-20 w-56 max-w-[85vw] rounded-lg border ${border} ${cardBg} shadow-lg py-1`}>
                   <button
-                    onClick={() => { setDark(d => !d); setMenuOpen(false); }}
+                    onClick={() => { setThemeMode(dark ? "light" : "dark"); setMenuOpen(false); }}
                     className={`w-full flex items-center gap-2 text-left px-3 py-2 text-[13px] ${rowHover}`}
                   >
                     {dark ? <Sun size={14} /> : <Moon size={14} />} {dark ? "Switch to Light Mode" : "Switch to Dark Mode"}
@@ -2799,57 +2816,35 @@ export default function CampCash() {
               </div>
             )}
 
-            {/* Account */}
-            <div className={`rounded-2xl border ${border} ${cardBg} p-5`}>
-              <div className="flex items-center gap-3 mb-4">
-                <div className={`w-9 h-9 rounded-full flex items-center justify-center ${dark ? "bg-blue-500/15" : "bg-blue-50"}`}>
-                  <User size={16} className="text-blue-600" />
-                </div>
-                <div>
-                  <div className="font-semibold text-[14px]">Account</div>
-                  <div className={`text-[12px] ${textMuted}`}>Local profile only — no cloud sync yet</div>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className={`text-[12px] font-medium ${textMuted} mb-1 block`}>Display name</label>
-                  <input
-                    type="text"
-                    value={accountName}
-                    onChange={e => setAccountName(e.target.value)}
-                    placeholder="e.g. Aarav"
-                    className={`w-full rounded-lg border ${inputBg} px-3 py-2 text-[14px] outline-none`}
-                  />
-                </div>
-                <div>
-                  <label className={`text-[12px] font-medium ${textMuted} mb-1 block`}>Email (optional)</label>
-                  <input
-                    type="email"
-                    value={accountEmail}
-                    onChange={e => setAccountEmail(e.target.value)}
-                    placeholder="for future cloud sync"
-                    className={`w-full rounded-lg border ${inputBg} px-3 py-2 text-[14px] outline-none`}
-                  />
-                </div>
-              </div>
-            </div>
 
             {/* Appearance & Currency */}
             <div className={`rounded-2xl border ${border} ${cardBg} p-5`}>
               <div className="font-semibold text-[14px] mb-4">Appearance & Currency</div>
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <div className="text-[13px] font-medium">Dark Mode</div>
-                  <div className={`text-[12px] ${textMuted}`}>Switch the whole app to a dark theme</div>
-                </div>
-                <button
-                  onClick={() => setDark(d => !d)}
-                  className={`w-11 rounded-full relative transition-colors ${dark ? "bg-blue-500" : "bg-neutral-300"}`}
-                  style={{ height: 22 }}
-                >
-                  <span className={`absolute top-0.5 w-4.5 h-4.5 rounded-full bg-white transition-all ${dark ? "left-6" : "left-0.5"}`} style={{ width: 18, height: 18 }} />
-                </button>
+              <label className={`text-[12px] font-medium ${textMuted} mb-1 block`}>Theme</label>
+              <div className="flex items-center gap-2 mb-4">
+                {[
+                  { key: "light", label: "Light", icon: Sun },
+                  { key: "dark", label: "Dark", icon: Moon },
+                  { key: "system", label: "System", icon: Monitor },
+                ].map(({ key, label, icon: Icon }) => (
+                  <button
+                    key={key}
+                    onClick={() => setThemeMode(key)}
+                    className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[13px] font-medium border transition-colors ${
+                      themeMode === key
+                        ? "bg-blue-600 border-blue-600 text-white"
+                        : `${border} ${textMuted} hover:${dark ? "bg-neutral-800" : "bg-neutral-50"}`
+                    }`}
+                  >
+                    <Icon size={14} /> {label}
+                  </button>
+                ))}
               </div>
+              {themeMode === "system" && (
+                <div className={`text-[11px] ${textMuted} mb-4`}>
+                  Currently following your device — {systemPrefersDark ? "dark" : "light"} right now.
+                </div>
+              )}
               <label className={`text-[12px] font-medium ${textMuted} mb-1 block`}>Currency & number format</label>
               <div className="flex items-center gap-2 flex-wrap">
                 {CURRENCY_PRESETS.map(c => (
