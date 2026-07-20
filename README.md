@@ -10,14 +10,11 @@ A personal budgeting and wallet tracker — built for everyday spending, fixed d
 
 > **A note on how this was made:** The UI/UX design was created by hand in **Figma**. All of the actual coding — every component, calculation, and feature below — was written by **Claude AI**, iterated on conversationally rather than typed by hand line by line.
 
-**🔗 Live Deployment:** [campcash.vercel.app](https://campcash.vercel.app/)
+**🔗 Live Beta:** [campcash.vercel.app](https://campcash.vercel.app/)
 
-<!--
-Add a few screenshots here to give visitors a preview without clicking through —
-e.g. the Home dashboard, Budget Plan tab, and dark mode. Drop image files into
-a /screenshots folder in the repo and reference them like:
-![Home dashboard](./screenshots/home.png)
--->
+| Home | Budget Plan | Settings |
+|---|---|---|
+| ![Home dashboard](./screenshots/home.png) | ![Budget Plan](./screenshots/budget-plan.png) | ![Settings](./screenshots/settings.png) |
 
 ---
 
