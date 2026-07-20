@@ -241,6 +241,8 @@ export default function CampCash() {
   const [budgetImportConfirming, setBudgetImportConfirming] = useState(false);
   const [pendingBudgetImport, setPendingBudgetImport] = useState(null);
   const [budgetMessage, setBudgetMessage] = useState("");
+  const [lastDeletedBudgetItem, setLastDeletedBudgetItem] = useState(null);
+  const budgetUndoTimeoutRef = useRef(null);
 
   const [sources, setSources] = useState(DEFAULT_SOURCES);
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
@@ -692,6 +694,9 @@ export default function CampCash() {
     if (transactions.length === 0) {
       list.push({ id: "welcome", tone: "info", text: "Log your first transaction on Home to start tracking against your budget." });
     }
+    if (!cloudConnected) {
+      list.push({ id: "local-storage-notice", tone: "info", text: "Your data stays in this browser only. Turn on Cloud Sync in Settings to carry it across devices." });
+    }
     const todayISO = new Date().toISOString().slice(0, 10);
     fds.filter(fd => fd.status === "active").forEach(fd => {
       const maturityDate = fdMaturityDate(fd.startDate, fd.tenureMonths);
@@ -704,7 +709,7 @@ export default function CampCash() {
       }
     });
     return list;
-  }, [categories, budgetForActivePeriod, actualByCategory, balance, budgetAveragePerPeriod, transactions, budgetPeriods, activePeriodIndex, budgetScenarioEnabled, budgetScenario, fds]);
+  }, [categories, budgetForActivePeriod, actualByCategory, balance, budgetAveragePerPeriod, transactions, budgetPeriods, activePeriodIndex, budgetScenarioEnabled, budgetScenario, fds, cloudConnected]);
 
   const unseenNotifCount = notifications.filter(n => !seenNotifIds.has(n.id)).length;
 
@@ -807,10 +812,15 @@ export default function CampCash() {
       setBudgetMessage("You need at least one period.");
       return;
     }
+    const periodName = budgetPeriods[index];
+    const amountsSnapshot = budgetCategories.map(cat => ({ id: cat.id, amount: cat.amounts[index] }));
     setBudgetPeriods(prev => prev.filter((_, i) => i !== index));
     setBudgetCategories(prev => prev.map(cat => ({ ...cat, amounts: cat.amounts.filter((_, i) => i !== index) })));
     setSelectedPeriodIndex(i => (i >= index ? Math.max(0, i - 1) : i));
     setActivePeriodIndex(i => (i >= index ? Math.max(0, i - 1) : i));
+    if (budgetUndoTimeoutRef.current) clearTimeout(budgetUndoTimeoutRef.current);
+    setLastDeletedBudgetItem({ type: "period", index, name: periodName, amountsSnapshot });
+    budgetUndoTimeoutRef.current = setTimeout(() => setLastDeletedBudgetItem(null), 6000);
   }
 
   function addBudgetCategory() {
@@ -833,7 +843,42 @@ export default function CampCash() {
   }
 
   function deleteBudgetCategory(id) {
+    const index = budgetCategories.findIndex(c => c.id === id);
+    const category = budgetCategories.find(c => c.id === id);
     setBudgetCategories(prev => prev.filter(cat => cat.id !== id));
+    if (category) {
+      if (budgetUndoTimeoutRef.current) clearTimeout(budgetUndoTimeoutRef.current);
+      setLastDeletedBudgetItem({ type: "category", index, category });
+      budgetUndoTimeoutRef.current = setTimeout(() => setLastDeletedBudgetItem(null), 6000);
+    }
+  }
+
+  function undoBudgetDelete() {
+    if (!lastDeletedBudgetItem) return;
+    if (lastDeletedBudgetItem.type === "period") {
+      const { index, name, amountsSnapshot } = lastDeletedBudgetItem;
+      setBudgetPeriods(prev => {
+        const next = [...prev];
+        next.splice(index, 0, name);
+        return next;
+      });
+      setBudgetCategories(prev => prev.map(cat => {
+        const snap = amountsSnapshot.find(s => s.id === cat.id);
+        const amt = snap ? snap.amount : 0;
+        const nextAmounts = [...cat.amounts];
+        nextAmounts.splice(index, 0, amt);
+        return { ...cat, amounts: nextAmounts };
+      }));
+    } else if (lastDeletedBudgetItem.type === "category") {
+      const { index, category } = lastDeletedBudgetItem;
+      setBudgetCategories(prev => {
+        const next = [...prev];
+        next.splice(Math.min(index, next.length), 0, category);
+        return next;
+      });
+    }
+    setLastDeletedBudgetItem(null);
+    if (budgetUndoTimeoutRef.current) clearTimeout(budgetUndoTimeoutRef.current);
   }
 
   function triggerBudgetImport() {
@@ -1585,6 +1630,7 @@ export default function CampCash() {
               <Wallet size={16} strokeWidth={2.2} />
             </div>
             <span className="font-semibold text-[15px] tracking-tight">CampCash</span>
+            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${dark ? "bg-amber-500/15 text-amber-400" : "bg-amber-100 text-amber-700"}`}>BETA</span>
           </div>
           <nav className="flex flex-col gap-1">
             {navItems.map(({ icon: Icon, label, key }) => (
@@ -2817,6 +2863,28 @@ export default function CampCash() {
             )}
 
 
+            {/* Beta Notice */}
+            <div className={`rounded-2xl border ${dark ? "border-amber-900 bg-amber-500/5" : "border-amber-100 bg-amber-50/50"} p-5`}>
+              <div className="flex items-center gap-3 mb-2">
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center ${dark ? "bg-amber-500/15" : "bg-amber-100"}`}>
+                  <AlertTriangle size={16} className="text-amber-600" />
+                </div>
+                <div className="font-semibold text-[14px] text-amber-700">You're using an open beta</div>
+              </div>
+              <ul className={`text-[12px] ${textMuted} list-disc pl-5 space-y-1 mb-3`}>
+                <li>Your data stays in this browser only, unless you turn on Cloud Sync below.</li>
+                <li>This app hasn't been through a formal security review — avoid relying on it for anything highly sensitive.</li>
+              </ul>
+              <a
+                href="https://github.com/Hydrowins/CampCash/issues"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[12.5px] font-medium text-amber-700 hover:text-amber-800 underline"
+              >
+                Report an issue on GitHub →
+              </a>
+            </div>
+
             {/* Account */}
             <div className={`rounded-2xl border ${border} ${cardBg} p-5`}>
               <div className="flex items-center gap-3 mb-4">
@@ -3169,6 +3237,15 @@ export default function CampCash() {
         <div className={`fixed bottom-5 left-1/2 -translate-x-1/2 z-30 rounded-lg border ${border} ${cardBg} shadow-lg px-4 py-3 flex items-center gap-4`}>
           <span className="text-[13px]">Transaction deleted.</span>
           <button onClick={undoDelete} className="text-[13px] font-semibold text-blue-600 hover:text-blue-700">
+            Undo
+          </button>
+        </div>
+      )}
+
+      {lastDeletedBudgetItem && (
+        <div className={`fixed bottom-5 left-1/2 -translate-x-1/2 z-30 rounded-lg border ${border} ${cardBg} shadow-lg px-4 py-3 flex items-center gap-4`} style={lastDeleted ? { bottom: 72 } : undefined}>
+          <span className="text-[13px]">{lastDeletedBudgetItem.type === "period" ? "Period deleted." : "Category deleted."}</span>
+          <button onClick={undoBudgetDelete} className="text-[13px] font-semibold text-blue-600 hover:text-blue-700">
             Undo
           </button>
         </div>
